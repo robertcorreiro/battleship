@@ -15,6 +15,7 @@
 #include <stdio.h>
 
 #define BOARD_LEN 10
+#define MAX_BUFF_LEN 512
 
 #define vprintf(format, ...) do {            \
   if (verbose)                               \

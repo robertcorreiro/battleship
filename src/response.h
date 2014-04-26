@@ -12,10 +12,6 @@
 #ifndef RESPONSE_H
 #define RESPONSE_H
 
-typedef struct {
-
-} response;
-
-response build_response(int sockfd, battleship *game, unsigned type);
+void build_response(battleship *game, char *buff_in, char *buff_out);
 
 #endif

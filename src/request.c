@@ -14,20 +14,14 @@
 #include <stdio.h>
 
 int request_handler(int sockfd, battleship *game) {
-  unsigned type;
-  response res;
+  char buff_in[MAX_BUFF_LEN];
+  char buff_out[MAX_BUFF_LEN];
 
-  /* Parse first byte for message type */
-  if (read(sockfd, &type, 1) != 1) {
-    fprintf(stderr, "Failed to get message type\n");
-    return -1;  /* TODO: SEND TRY AGAIN MESSAGE */
-  }
-
-  printf("%x\n", type);
-  printf("%d\n", type);
+  /* Read message into buffer */
+  read(sockfd, &buff_in, MAX_BUFF_LEN);
 
   /* Call to FSM */
-  res = build_response(sockfd, game, type);  
+  build_response(game, buff_in, buff_out);  
 
   /* SEND RESPONSE HERE */
 }
