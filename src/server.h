@@ -53,9 +53,11 @@ typedef struct {
 
 typedef struct {
   game_state state;
-  player players[2];
-  board p1;
-  board p2;
+  player p1;
+  player p2;
+  int num_players;
+  board p1_board;
+  board p2_board;
 } battleship;
 
 #endif

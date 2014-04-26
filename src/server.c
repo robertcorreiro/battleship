@@ -20,7 +20,7 @@
 #include <netdb.h>
 #include <signal.h>  /* sigaction() */
 
-#define PORT "8080"
+#define PORT "5050"
 #define BACKLOG 5
 
 int verbose;

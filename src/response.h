@@ -12,6 +12,13 @@
 #ifndef RESPONSE_H
 #define RESPONSE_H
 
-void build_response(battleship *game, char *buff_in, char *buff_out);
+#include "server.h"
+
+typedef struct message{
+  char buf[MAX_BUFF_LEN];
+  int len;
+} message;
+
+void build_response(battleship *game, message *msg_in, message *msg_out);
 
 #endif

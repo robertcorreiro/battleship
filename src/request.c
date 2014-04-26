@@ -14,14 +14,16 @@
 #include <stdio.h>
 
 int request_handler(int sockfd, battleship *game) {
-  char buff_in[MAX_BUFF_LEN];
-  char buff_out[MAX_BUFF_LEN];
+  message msg_out, msg_in;
 
   /* Read message into buffer */
-  read(sockfd, &buff_in, MAX_BUFF_LEN);
+  msg_in.len = read(sockfd, msg_in.buf, MAX_BUFF_LEN);
 
   /* Call to FSM */
-  build_response(game, buff_in, buff_out);  
+  build_response(game, &msg_in, &msg_out);  
 
   /* SEND RESPONSE HERE */
+  send(sockfd,msg_out.buf,msg_out.len,0);
+  close(sockfd);
 }
+
