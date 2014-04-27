@@ -12,9 +12,10 @@ BUILDDIR = ../build
 BINDIR = ../bin
 FRAMEWORK = server.c request.c response.c
 FRAMEWORK_OBJS = $(FRAMEWORK:%.c=$(BUILDDIR)/%.o)
-EXEC = server
+SERVER = server
+CLIENT = client
 
-all: directories ${EXEC}
+all: directories ${SERVER} ${CLIENT}
 
 directories:
 	mkdir -p ${BUILDDIR}/${MODDIR} ${BINDIR}
@@ -22,8 +23,8 @@ directories:
 #../public/%: ../public/%.c
 #	${CC} $< -o $@
 
-${EXEC}: ${FRAMEWORK_OBJS} 
-	${CC} ${FRAMEWORK_OBJS} -o ${BINDIR}/${EXEC}
+${SERVER}: ${FRAMEWORK_OBJS} 
+	${CC} ${FRAMEWORK_OBJS} -o ${BINDIR}/${SERVER}
 
 ${BUILDDIR}/server.o: ${FRAMEWORK}           \
 	                    ${BUILDDIR}/request.o  \
@@ -36,10 +37,20 @@ ${BUILDDIR}/request.o: request.c request.h
 ${BUILDDIR}/response.o: response.c response.h
 	${CC} -c response.c -o ${BUILDDIR}/response.o
 
+${CLIENT}: ${BUILDDIR}/client.o
+	${CC} ${BUILDDIR}/client.o -o ${BINDIR}/${CLIENT}
+
+${BUILDDIR}/client.o: client.c client.h
+	${CC} -c client.c -o ${BUILDDIR}/client.o
+
 #${BUILDDIR}/${MODDIR}/%.o: ${MODDIR}/%.c ${MODDIR}/%.h
 #	${CC} -c $< -o $@
 
-#test:
+t-s:
+	../bin/server -v
+
+t-c:
+	../bin/client -v 127.0.0.1
 
 submit:
 	svn commit -m "submitted for grade"
