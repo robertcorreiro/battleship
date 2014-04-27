@@ -48,7 +48,7 @@ typedef struct {
 
 typedef struct {
   char ships[BOARD_LEN][BOARD_LEN];
-  char guess[BOARD_LEN][BOARD_LEN];
+  char guesses[BOARD_LEN][BOARD_LEN];
 } board;
 
 typedef struct {
