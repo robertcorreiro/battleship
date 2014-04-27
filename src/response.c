@@ -8,13 +8,13 @@ unsigned get_message_type(message *msg_in) {
 }
 
 unsigned get_player_id(message *msg_in) {
-  return (msg_in->len >= 5) ? *(unsigned *)(msg_in->buf+1) : 0;
+  return (msg_in->len >= 6) ? *(unsigned *)(msg_in->buf+1) : 0;
 }
 
 int setup_board(message *msg_in, board *bd){
   memset(bd,'\0',sizeof(*bd));
   int i,j;
-  int offset = 5;
+  int offset = 6;
   int type_lengths[] = {2,3,3,4,5};
   int type;
   int dir;
@@ -28,6 +28,10 @@ int setup_board(message *msg_in, board *bd){
     if(type > 4 || type < 0){
       vprintf("ship %d: bad type: %x (%d)\n", i, type,type);
       return 1;
+    }
+    if(type != i){
+      vprintf("ship %d: out of order\n",i);
+      return;
     }
     length = type_lengths[type];
     for(x=msg_in->buf[offset+2],y=msg_in->buf[offset+3],j=0;j<length;j++,(dir)?x++:y++){
@@ -61,16 +65,24 @@ void build_response(battleship *game, message *msg_in, message *msg_out) {
             if(game->sync){
               game->sync = 0;
               game->p2.uid = playerID;
-              vprintf("going to SETUP state\n");
-              game->state = SETUP;
             }else{
               game->sync = 1;
               game->p1.uid = playerID;
             }
           }
           vprintf("I want to join!\n");
-          strncpy(msg_out->buf,"welcome!",10);
-          msg_out->len = strlen(msg_out->buf);
+          msg_out->buf[0] = 1 - game->sync;
+          break;
+        case POLL:
+          vprintf("got a poll!\n");
+          playerID = get_player_id(msg_in);
+          if(game->p1.uid == playerID){
+            msg_out->buf[0] = 1 - game->sync;
+            if(!game->sync){
+              vprintf("going to SETUP state\n");
+              game->state = SETUP;
+            }
+          }
           break;
         default:
           vprintf("Something else.\n");
@@ -128,10 +140,19 @@ void build_response(battleship *game, message *msg_in, message *msg_out) {
             }
             if(game->sync){
               game->sync = 0;
-              vprintf("game->state: PLAY\n");
-              game->state = PLAY;
             }else{
               game->sync = 1;
+            }
+          }
+          break;
+        case POLL:
+          vprintf("got a poll!\n");
+          playerID = get_player_id(msg_in);
+          if(game->p1.uid == playerID || game->p2.uid == playerID){
+            msg_out->buf[0] = 1 - game->sync;
+            if(!game->sync){
+              vprintf("going to PLAY state\n");
+              game->state = PLAY;
             }
           }
           break;
