@@ -79,225 +79,90 @@ int get_socket(char *serv_ip) {
   return sockfd;
 }
 
-void print_ships_board(char board[BOARD_LEN][BOARD_LEN]) {
-  int i, j;
-  char row_header = 'A';
-
-  printf("   1  2  3  4  5  6  7  8  9  10\n");
-  for(i = 0; i < BOARD_LEN; i++) {
-    for(j = 0; j < BOARD_LEN + 1; j++) {
-      if (j == 0) {  /* 0th column needs headings */
-        printf("%c  ", row_header++);
-      } else if (j == BOARD_LEN) {
-        printf("%c\n", board[i][j-1]);
-      } else {
-        printf("%c  ", board[i][j-1]);
-      }
-    }
-  }
-  printf("\n");
-}
-
-
-int join_game_queue(char *serv_ip, int uid) {
-  message msg;
-  int sockfd = get_socket(serv_ip);
-  int *intptr;
-  msg.buf[0] = 0;
-  intptr = (int*)&msg.buf[1];
-  *intptr = uid; 
-  msg.len = 5;  /* TODO: fix hardcoding */
-
-  if (write(sockfd, msg.buf, msg.len) == -1) {
-    perror("client: write failed in join_game_queue");
-    return -1;
-  }
-  
-  if (close(sockfd) == -1) {
-    perror("client: failed to close sockfd");
-    return -1;
-  }
-}
-
-void add_ship_to_board(ship *s, char board[BOARD_LEN][BOARD_LEN]) {
-  int i, row = s->row, col = s->col;
-
-  if (s->ori > 0) {  /* +positive => horizontal */
-    for (i = 0; i < s->len; i++) {
-      board[s->row][col++] = '0' + s->len;
-    }
-  } else {  /* -negative => vertical */
-    for (i = 0; i< s->len; i++) {
-      board[row++][s->col] = '0' + s->len;
-    }
-  }
-}
-
-int set_ship_position(ship *s) {
-  int i, row, col;
-
-  printf("Enter initial position: ");
-  for (i = 0; i < 3; i++) {
-    int c = getchar();
-    if (c == EOF) {
-      if (i == 2) break;
-      return -1;
-    }
-    if (i == 0) row = c - 65;
-    if (i == 1) col = c - 49;
-  }
-
-  /* validation */
-  if (row < 0 || row > 9 || col < 0 || col > 9) {
-    return -1;
-  }
-
-  s->row = row;
-  s->col = col;
-
-  return 1;
-}
-
-int set_ship_orientation(ship *s) {
-  int i, ori;
-
-  printf("Enter Orientation (H/V): ");
-  int c = getchar();
-  getchar(); /* hack to get rid of EOF */
-  
-  switch(c) {
-    case 'h':
-    case 'H':
-      s->ori = 1;
-      break;
-    case 'v':
-    case 'V':
-      s->ori = 0;
-      break;
-    default:
-      return -1;
-  }
-
-  return 1;
-}
-
-int validate_ship_placement(ship *s, char board[BOARD_LEN][BOARD_LEN]) {
-  int i;
-
-  // vprintf("row=%d\ncol=%d\nori=%d\nlen=%d\n\n",s->row,s->col,s->ori,s->len);
-
-  /* Horizontal validations */
-  if (s->ori) {  
-    /* Check running over the edge */
-    if (s->col + (s->len) - 1 > 9) return -1;
-
-    /* Horizontal collision? */
-    int col = s->col;
-    for (i = 0; i < s->len; i++, col++) {
-      /* don't allow if something's already in the spot */
-      /* TODO: change to WATER instead of 0 */
-      if (board[s->row][col] != '0') return -1;
-    }
-  } 
-  /* Vertical validations */
-  else {  
-    /* Check running over the edge */
-    if (s->row + (s->len) - 1 > 9) return -1;
-
-    /* Vertical collision? */
-    int row = s->row;
-    for (i = 0; i < s->len; i++, row++) {
-      /* TODO: change to WATER instead of 0 */
-      if (board[row][s->col] != '0') return -1;
-    }
-  }
-  return 1;
-}
-
 int send_ships_to_server(char *serv_ip, int uid, ship ships[5]) {
-  int i, sockfd;
+  int i, *intptr, sockfd = get_socket(serv_ip);
+  char rv;
   message msg;
-  int *intptr;
 
-  msg.buf[0] = 1;
-  intptr = (int *)&msg.buf[1];
+  /* TODO: fix hardcoding */
+  msg.len = 26; 
+  msg.buf[0] = 1;  /* sets first char of buf (msg_type) to INIT */
+  intptr = (int *)&msg.buf[1];  /* sets next 4 bytes to int uid */
   *intptr = uid;
-  msg.len = 25; /* TODO: fix hardcoding */
+  intptr = (int *)&msg.buf[5];  /* sets 6th byte to len of msg */
+  *intptr = msg.len;
 
   /* TODO: fix hardcoding */
   for (i = 0; i < 5; i++) {
-    msg.buf[5 + i*4] = (char) ships[i].sid;
-    msg.buf[6 + i*4] = (char) ships[i].ori;
-    msg.buf[7 + i*4] = (char) ships[i].col;
-    msg.buf[8 + i*4] = (char) ships[i].row;
+    msg.buf[6 + i*4] = (char) ships[i].sid;
+    msg.buf[7 + i*4] = (char) ships[i].ori;
+    msg.buf[8 + i*4] = (char) ships[i].col;
+    msg.buf[9 + i*4] = (char) ships[i].row;
   }
 
-  sockfd = get_socket(serv_ip);
   if (write(sockfd, msg.buf, msg.len) == -1) {
-    perror("client: write failed in join_game_queue");
+    perror("client: write failed in send_ships_to_server");
+    return -1;
+  }
+
+  if (read(sockfd, &rv, 1) != 1) {
+    perror("client: read failed in send_ships_to_server");
+    return -1;
+  }
+
+  if (close(sockfd) == -1) {
+    perror("client: failed to close socket in send_ships_to_server");
     return -1;
   }
   
-  if (close(sockfd) == -1) {
-    perror("client: failed to close sockfd");
-    return -1;
-  }
-  return 1;
+  return (int) rv;
 }
 
-int setup_game(char *serv_ip, int uid) {
-  int row, col, rv, i;
-  char board[BOARD_LEN][BOARD_LEN];
-  ship ships[5], *s;
+int send_req_to_server(message_type type, char *serv_ip, int uid) {
+  int sockfd = get_socket(serv_ip), *intptr;
+  char rv;
+  message msg;
 
-  /* Initialize ships board to empty */
-  for (row = 0; row < BOARD_LEN; row++) {
-    for (col = 0; col < BOARD_LEN; col++) {
-      board[row][col] = '0';
-    }
+  /* TODO: fix hardcoding */
+  switch (type) {
+    case JOIN:
+      msg.buf[0] = 0;
+      break;
+    case POLL:
+      msg.buf[0] = 3;
+      break;
+    default:
+      break;
   }
 
-  print_ships_board(board);
+  /* TODO: fix hardcoding */
+  msg.len = 6;  
+  intptr = (int*)&msg.buf[1];
+  *intptr = uid; 
+  intptr = (int*)&msg.buf[5];
+  *intptr = msg.len; 
 
-  for (i = 0; i < 5; i++) {
-    s = &ships[i];
-    s->sid = i;
-    s->ori = 1;
-    s->len = ship_lens[i];
-
-    do {
-      printf("SETUP: Ship %d - Length %d\n", i+1, s->len);
-      
-      rv = set_ship_position(s);
-      while (rv == -1) {
-        printf("Invalid position. Please try again.\n");
-        rv = set_ship_position(s);
-      }
-
-      rv = set_ship_orientation(s);
-      while (rv == -1) {
-        printf("Invalid orientation. Please try again\n");
-        rv = set_ship_orientation(s);
-      }
-
-      rv = validate_ship_placement(s, board);
-      if (rv == -1) {
-        print_ships_board(board);
-        printf("Invalid placement. Please try again.\n");
-      }
-    } while (rv == -1);
-
-    add_ship_to_board(s, board);
-    print_ships_board(board);
+  if (write(sockfd, msg.buf, msg.len) == -1) {
+    perror("client: write failed in send_req_to_server");
+    return -1;
   }
 
-  /* TODO: check return val */
-  send_ships_to_server(serv_ip, uid, ships);
+  /* TODO: fix hardcoding */
+  if (read(sockfd, &rv, 1) != 1) {
+    perror("client: failed to read join/poll reponse");
+    return -1;
+  }
 
+  if (close(sockfd) == -1) {
+    perror("client: failed to close join/poll socket");
+    return -1;
+  }
+
+  return (int) rv;
 }
 
 int main(int argc,char **argv) {
-  int sockfd, uid;
+  int sockfd, uid, ready;
   char *options = "v", *serv_ip, c;
   verbose = 0;
 
@@ -313,18 +178,35 @@ int main(int argc,char **argv) {
     }
   }
 
-  serv_ip = argv[optind];
   srand(time(NULL));
   uid = rand();
+  serv_ip = argv[optind];
 
   /* Verify server is up and working */
-  if (join_game_queue(serv_ip, uid) == -1) {
-    vprintf("Error: Failed to join game queue");
-    exit(EXIT_FAILURE);
+  printf("Connecting to server");
+  do {
+    printf(".");
+    ready = send_req_to_server(JOIN, serv_ip, uid); 
+  } while (ready == -1);
+
+  printf("\nWaiting to join game.");
+  while (!ready) {
+    printf(".");
+    sleep(2);
+    ready = send_req_to_server(POLL, serv_ip, uid);
   }
+  printf("\nGame found!\n");
 
   /* Get ship input from user */
-  setup_game(serv_ip, uid);
+  ship ships[5];
+  setup_game_ships(ships);  
+  printf("Validating ships");
+  do {
+    printf(".");
+    ready = send_ships_to_server(serv_ip, uid, ships);
+  } while (ready == -1);
+  printf("\n");
+  
 
   /* WAIT FOR GAME TO START OR PLAY IF P2 */
 

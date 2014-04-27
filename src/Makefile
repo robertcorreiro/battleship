@@ -37,11 +37,14 @@ ${BUILDDIR}/request.o: request.c request.h
 ${BUILDDIR}/response.o: response.c response.h
 	${CC} -c response.c -o ${BUILDDIR}/response.o
 
-${CLIENT}: ${BUILDDIR}/client.o
-	${CC} ${BUILDDIR}/client.o -o ${BINDIR}/${CLIENT}
+${CLIENT}: ${BUILDDIR}/client.o ${BUILDDIR}/client_setup.o
+	${CC} ${BUILDDIR}/client.o ${BUILDDIR}/client_setup.o -o ${BINDIR}/${CLIENT}
 
 ${BUILDDIR}/client.o: client.c client.h
 	${CC} -c client.c -o ${BUILDDIR}/client.o
+
+${BUILDDIR}/client_setup.o: client_setup.c
+	${CC} -c client_setup.c -o ${BUILDDIR}/client_setup.o
 
 #${BUILDDIR}/${MODDIR}/%.o: ${MODDIR}/%.c ${MODDIR}/%.h
 #	${CC} -c $< -o $@

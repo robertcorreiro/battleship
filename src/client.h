@@ -9,7 +9,8 @@
 
 */
 
-int ship_lens[] = {2, 3, 3, 4, 5};
+#ifndef CLIENT_H
+#define CLIENT_H
 
 typedef struct {
   int sid;
@@ -18,3 +19,5 @@ typedef struct {
   int row;
   int len;
 } ship;
+
+#endif
