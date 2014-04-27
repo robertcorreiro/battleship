@@ -54,18 +54,18 @@ void build_response(battleship *game, message *msg_in, message *msg_out) {
       vprintf("game->state: WAITING\n");
       switch(type) {
         case JOIN:
-          if(game->num_players == 2){
+          if(game->sync == 2){
             vprintf("game is already full!\n");
           }
           int playerID;
           if((playerID = get_player_id(msg_in)) != 0){
-            if(game->num_players == 1){
-              game->num_players++;
+            if(game->sync){
+              game->sync = 0;
               game->p2.uid = playerID;
               vprintf("going to SETUP state\n");
               game->state = SETUP;
             }else{
-              game->num_players = 1;
+              game->sync = 1;
               game->p1.uid = playerID;
             }
           }
@@ -91,27 +91,48 @@ void build_response(battleship *game, message *msg_in, message *msg_out) {
               vprintf("bad packet\n");
               return;
             }else if(playerID == game->p1.uid){
-              vprintf("got init from p1\n");
-              new_board = &(game->p1_board);
+              if(!game->p1_board.setup){
+                vprintf("got init from p1\n");
+                new_board = &(game->p1_board);
+              }else{
+                vprintf("p1: no re-initialization!\n");
+                return;
+              }
             }else if(playerID == game->p2.uid){
-              vprintf("got init from p2\n");
-              new_board = &(game->p2_board);
+              if(!game->p2_board.setup){
+                vprintf("got init from p2\n");
+                new_board = &(game->p2_board);
+              }else{
+                vprintf("p2: no re-initialization!\n");
+                return;
+              }
             }else{
               vprintf("unknown uid\n");
               return;
             }
-            if(setup_board(msg_in,new_board)){
+            int error;
+            if(error = setup_board(msg_in,new_board)){
               vprintf("error making board!\n");
             }else{
               vprintf("board successfully created!\n");
             }
             int i,j;
-            char *icons = "_SF";
+            char *icons = "~#@";
             for(i=0;i<BOARD_LEN;i++){
               for(j=0;j<BOARD_LEN;j++){
                 vprintf("%c",icons[new_board->ships[i][j]]);
               }
               vprintf("\n");
+            }
+            if(error){
+              return;
+            }
+            if(game->sync){
+              game->sync = 0;
+              vprintf("game->state: PLAY\n");
+              game->state = PLAY;
+            }else{
+              game->sync = 1;
             }
           }
           break;
