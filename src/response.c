@@ -48,7 +48,7 @@ int setup_board(message *msg_in, board *bd){
 
 void build_response(battleship *game, message *msg_in, message *msg_out) {
   unsigned type = get_message_type(msg_in);
-
+  int playerID = get_player_id(msg_in);
   switch(game->state) {
     case WAITING:
       vprintf("game->state: WAITING\n");
@@ -57,7 +57,6 @@ void build_response(battleship *game, message *msg_in, message *msg_out) {
           if(game->sync == 2){
             vprintf("game is already full!\n");
           }
-          int playerID;
           if((playerID = get_player_id(msg_in)) != 0){
             if(game->sync){
               game->sync = 0;
@@ -86,7 +85,7 @@ void build_response(battleship *game, message *msg_in, message *msg_out) {
         case INIT:
           {
             board *new_board;
-            int playerID = get_player_id(msg_in);
+            playerID = get_player_id(msg_in);
             if(playerID == 0){
               vprintf("bad packet\n");
               return;
@@ -141,7 +140,45 @@ void build_response(battleship *game, message *msg_in, message *msg_out) {
       }    
       break;
     case PLAY:
-      
+      switch(type){
+        case MOVE:
+          {
+            player p = (game->sync)?game->p1:game->p2;
+            player other_p = (!(game->sync))?game->p1:game->p2;
+            board *bd = (game->sync)?&(game->p1_board):&(game->p2_board);
+            board *other_bd = (!(game->sync))?&(game->p1_board):&(game->p2_board);
+            playerID = get_player_id(msg_in);
+            if(playerID == p.uid){
+              vprintf("got a move from player %d\n",game->sync);
+              
+              
+            }else if(playerID == other_p.uid){
+              vprintf("got an out of turn move from player %d\n",game->sync);
+              
+              
+            }else{
+              vprintf("invalid uid\n");
+            }
+            break;
+          }
+        case POLL:
+          playerID = get_player_id(msg_in);
+          if(playerID == game->p1.uid){
+            vprintf("got a poll from player 1\n");
+            
+            
+          }else if(playerID == game->p2.uid){
+            vprintf("got a poll from player 2\n");
+            
+            
+          }else{
+            vprintf("invalid uid\n");
+          }
+          break;
+        default:
+          
+          break;
+      }
       break;
     case FINAL:
       

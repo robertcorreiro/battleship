@@ -102,9 +102,10 @@ void print_ships_board(char board[BOARD_LEN][BOARD_LEN]) {
 int join_game_queue(char *serv_ip, int uid) {
   message msg;
   int sockfd = get_socket(serv_ip);
-
+  int *intptr;
   msg.buf[0] = 0;
-  msg.buf[1] = uid; 
+  intptr = (int*)&msg.buf[1];
+  *intptr = uid; 
   msg.len = 5;  /* TODO: fix hardcoding */
 
   if (write(sockfd, msg.buf, msg.len) == -1) {
@@ -216,9 +217,11 @@ int validate_ship_placement(ship *s, char board[BOARD_LEN][BOARD_LEN]) {
 int send_ships_to_server(char *serv_ip, int uid, ship ships[5]) {
   int i, sockfd;
   message msg;
-  
+  int *intptr;
+
   msg.buf[0] = 1;
-  msg.buf[1] = uid;
+  intptr = (int *)&msg.buf[1];
+  *intptr = uid;
   msg.len = 25; /* TODO: fix hardcoding */
 
   /* TODO: fix hardcoding */
@@ -245,7 +248,7 @@ int send_ships_to_server(char *serv_ip, int uid, ship ships[5]) {
 int setup_game(char *serv_ip, int uid) {
   int row, col, rv, i;
   char board[BOARD_LEN][BOARD_LEN];
-  ship ships[5], s;
+  ship ships[5], *s;
 
   /* Initialize ships board to empty */
   for (row = 0; row < BOARD_LEN; row++) {
@@ -257,34 +260,34 @@ int setup_game(char *serv_ip, int uid) {
   print_ships_board(board);
 
   for (i = 0; i < 5; i++) {
-    s = ships[i];
-    s.sid = i;
-    s.ori = 1;
-    s.len = ship_lens[i];
+    s = &ships[i];
+    s->sid = i;
+    s->ori = 1;
+    s->len = ship_lens[i];
 
     do {
-      printf("SETUP: Ship %d - Length %d\n", i+1, s.len);
+      printf("SETUP: Ship %d - Length %d\n", i+1, s->len);
       
-      rv = set_ship_position(&s);
+      rv = set_ship_position(s);
       while (rv == -1) {
         printf("Invalid position. Please try again.\n");
-        rv = set_ship_position(&s);
+        rv = set_ship_position(s);
       }
 
-      rv = set_ship_orientation(&s);
+      rv = set_ship_orientation(s);
       while (rv == -1) {
         printf("Invalid orientation. Please try again\n");
-        rv = set_ship_orientation(&s);
+        rv = set_ship_orientation(s);
       }
 
-      rv = validate_ship_placement(&s, board);
+      rv = validate_ship_placement(s, board);
       if (rv == -1) {
         print_ships_board(board);
         printf("Invalid placement. Please try again.\n");
       }
     } while (rv == -1);
 
-    add_ship_to_board(&s, board);
+    add_ship_to_board(s, board);
     print_ships_board(board);
   }
 
