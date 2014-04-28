@@ -104,7 +104,7 @@ int send_ships_to_server(request *req, response *res, ship ships[5]) {
     return -1;
   }
 
-  vprintf("before read: res->ready=%d\n", res->ready);
+  //vprintf("before read: res->ready=%d\n", res->ready);
 
   if (read(sockfd, &(res->ready), 1) != 1) {
     perror("client: read 1 failed in send_ships_to_server");
@@ -205,9 +205,9 @@ void poll_server(request *req, response *res) {
       fflush(stdout);
       sleep(2);
       send_req_to_server(req, res, POLL);
-      vprintf("\nPLAY:\n");
-      vprintf("poll_server:res->ready=%d\n", res->ready);
-      vprintf("poll_server:res->my_turn=%d\n", res->my_turn);
+      // vprintf("\nPLAY:\n");
+      // vprintf("poll_server:res->ready=%d\n", res->ready);
+      // vprintf("poll_server:res->my_turn=%d\n", res->my_turn);
     }
   }
 }
@@ -216,14 +216,15 @@ int get_move(move_rc *m) {
   int i, row, col;
 
   printf("Enter targeted location: ");
-  for (i = 0; i < 3; i++) {
+  for (i = 0; i < 4; i++) {
     int c = getchar();
-    if (c == EOF) {
-      if (i == 2) break;
+    if (c == EOF || c == '\n') {
+      if (i == 2 || i == 3) break;
       return -1;
     }
     if (i == 0) row = c - 65;
     if (i == 1) col = c - 49;
+    if (i == 2) col += 9;
   }
 
   /* simple validation */
@@ -274,6 +275,8 @@ int send_move_to_server(request *req, response *res, move_rc *m) {
 int move(request *req, response *res, char guess_board[BOARD_LEN][BOARD_LEN]) {
   move_rc m;
 
+  printf("Your Turn!\n");
+
   /* Get move input from user */
   if (get_move(&m) == -1) {
     printf("Invalid move. Try again.\n");
@@ -301,7 +304,7 @@ void game_loop(request *req, response *res, char ships_board[BOARD_LEN][BOARD_LE
 
   while (1) {
     if (!res->my_turn) {
-      printf("Waiting for other player");
+      printf("\nOpponent is firing a shot");
       poll_server(req, res);
       printf("\n");
       // update_ships_board?
@@ -309,8 +312,7 @@ void game_loop(request *req, response *res, char ships_board[BOARD_LEN][BOARD_LE
 
     print_board(guess_board);
     print_board(ships_board);
-    
-    printf("YOUR TURN!\n");
+     
     if (move(req, res, guess_board) == -1) continue;
     //update_guess_board(res->status, guess_board);
     res->my_turn = 0;
@@ -348,7 +350,7 @@ int main(int argc,char **argv) {
   }
 
   /* Verify server is up and working */
-  printf("Connecting to server");
+  printf("Connecting");
   do {
     printf(".");
     fflush(stdout);
@@ -360,7 +362,7 @@ int main(int argc,char **argv) {
 
   /* Poll until 2nd player joins */
   if (!res.ready) {
-    printf("Waiting to join game.");
+    printf("Searching for game.");
     poll_server(&req, &res);
   }
   printf("\nGame found!\n");
@@ -388,7 +390,7 @@ int main(int argc,char **argv) {
     setup_game(ships, board);  
   }
 
-  printf("%d - Validating ships", (int) time(NULL));
+  printf("Validating ships");
   do {
     printf(".");
     fflush(stdout);
@@ -397,10 +399,10 @@ int main(int argc,char **argv) {
     ready = send_ships_to_server(&req, &res, ships);
     //vprintf("main:res.ready=%d - 2\n", res.ready);
   } while (ready == -1);
-  printf("..Success - %d\n", (int) time(NULL));
+  printf("..Success\n");
     
-  vprintf("main:res.ready=%d\n", res.ready);
-  vprintf("main:res.my_turn=%d\n", res.my_turn);
+  // vprintf("main:res.ready=%d\n", res.ready);
+  // vprintf("main:res.my_turn=%d\n", res.my_turn);
 
   if (!res.ready) {
     printf("Waiting for game to start");

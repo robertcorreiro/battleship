@@ -52,7 +52,7 @@ int set_ship_position(ship *s) {
   printf("Enter initial position: ");
   for (i = 0; i < 4; i++) {
     int c = getchar();
-    if (c == EOF) {
+    if (c == EOF || c == '\n') {
       if (i == 2 || i == 3) break;
       return -1;
     }
@@ -61,8 +61,8 @@ int set_ship_position(ship *s) {
     if (i == 2) col += 9;
   }
 
-  vprintf("set_ship_position: row=%d\n", row);
-  vprintf("set_ship_position: col=%d\n", col);
+  // vprintf("set_ship_position: row=%d\n", row);
+  // vprintf("set_ship_position: col=%d\n", col);
 
   /* validation */
   if (row < 0 || row > 9 || col < 0 || col > 9) {
@@ -85,12 +85,12 @@ int set_ship_orientation(ship *s) {
   switch(c) {
     case 'h':
     case 'H':
-      vprintf("set_ship_orientation: horizontal\n");
+      //vprintf("set_ship_orientation: horizontal\n");
       s->ori = 1;
       break;
     case 'v':
     case 'V':
-      vprintf("set_ship_orientation: vertical\n");
+      //vprintf("set_ship_orientation: vertical\n");
       s->ori = 0;
       break;
     default:
@@ -103,7 +103,7 @@ int set_ship_orientation(ship *s) {
 int validate_ship_placement(ship *s, char board[BOARD_LEN][BOARD_LEN]) {
   int i;
 
-  vprintf("row=%d\ncol=%d\nori=%d\nlen=%d\n\n",s->row,s->col,s->ori,s->len);
+  //vprintf("row=%d\ncol=%d\nori=%d\nlen=%d\n\n",s->row,s->col,s->ori,s->len);
 
   /* Horizontal validations */
   if (s->ori) {  
