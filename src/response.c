@@ -72,6 +72,7 @@ void build_response(battleship *game, message *msg_in, message *msg_out) {
           }
           vprintf("I want to join!\n");
           msg_out->buf[0] = 1 - game->sync;
+          msg_out->len = 1;
           break;
         case POLL:
           vprintf("got a poll!\n");

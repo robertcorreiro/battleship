@@ -49,11 +49,14 @@ ${BUILDDIR}/client_setup.o: client_setup.c
 #${BUILDDIR}/${MODDIR}/%.o: ${MODDIR}/%.c ${MODDIR}/%.h
 #	${CC} -c $< -o $@
 
-t-s:
+ts:
 	../bin/server -v
 
-t-c:
-	../bin/client -v 127.0.0.1
+tc1:
+	../bin/client -v1 127.0.0.1
+
+tc2:
+	../bin/client -v2 127.0.0.1
 
 submit:
 	svn commit -m "submitted for grade"

@@ -27,13 +27,13 @@
 
 int verbose;
 
-void *get_in_addr(struct sockaddr *sa) {
-  if (sa->sa_family == AF_INET) {
-    return &(((struct sockaddr_in*)sa)->sin_addr);
-  }
+// void *get_in_addr(struct sockaddr *sa) {
+//   if (sa->sa_family == AF_INET) {
+//     return &(((struct sockaddr_in*)sa)->sin_addr);
+//   }
 
-  return &(((struct sockaddr_in6*)sa)->sin6_addr);
-}
+//   return &(((struct sockaddr_in6*)sa)->sin6_addr);
+// }
 
 /* Given a server's IP, returns a socket CONNECTED to it. */
 int get_socket(char *serv_ip) {
@@ -71,9 +71,6 @@ int get_socket(char *serv_ip) {
     return 2;
   }
 
-  inet_ntop(p->ai_family, get_in_addr((struct sockaddr *)p->ai_addr),
-          s, sizeof s);
-  printf("client: connecting to %s\n", s);
   freeaddrinfo(results);
 
   return sockfd;
@@ -89,8 +86,9 @@ int send_ships_to_server(char *serv_ip, int uid, ship ships[5]) {
   msg.buf[0] = 1;  /* sets first char of buf (msg_type) to INIT */
   intptr = (int *)&msg.buf[1];  /* sets next 4 bytes to int uid */
   *intptr = uid;
-  intptr = (int *)&msg.buf[5];  /* sets 6th byte to len of msg */
-  *intptr = msg.len;
+  // intptr = (int *)&msg.buf[5];  /* sets 6th byte to len of msg */
+  // *intptr = msg.len;
+  msg.buf[5] = 20;
 
   /* TODO: fix hardcoding */
   for (i = 0; i < 5; i++) {
@@ -126,9 +124,11 @@ int send_req_to_server(message_type type, char *serv_ip, int uid) {
   /* TODO: fix hardcoding */
   switch (type) {
     case JOIN:
+      vprintf("Sending a JOIN\n");
       msg.buf[0] = 0;
       break;
     case POLL:
+      //vprintf("Sending a POLL\n");
       msg.buf[0] = 3;
       break;
     default:
@@ -139,13 +139,16 @@ int send_req_to_server(message_type type, char *serv_ip, int uid) {
   msg.len = 6;  
   intptr = (int*)&msg.buf[1];
   *intptr = uid; 
-  intptr = (int*)&msg.buf[5];
-  *intptr = msg.len; 
+  // intptr = (int*)&msg.buf[5];
+  // *intptr = msg.len; 
+  msg.buf[5] = 0;
 
   if (write(sockfd, msg.buf, msg.len) == -1) {
     perror("client: write failed in send_req_to_server");
     return -1;
   }
+
+  //vprintf("After write()\n");
 
   /* TODO: fix hardcoding */
   if (read(sockfd, &rv, 1) != 1) {
@@ -153,17 +156,21 @@ int send_req_to_server(message_type type, char *serv_ip, int uid) {
     return -1;
   }
 
+  //vprintf("After read()\n");
+
   if (close(sockfd) == -1) {
     perror("client: failed to close join/poll socket");
     return -1;
   }
 
+  //vprintf("After close()\n");
+
   return (int) rv;
 }
 
 int main(int argc,char **argv) {
-  int sockfd, uid, ready;
-  char *options = "v", *serv_ip, c;
+  int sockfd, uid, ready, player;
+  char *options = "v12", *serv_ip, c;
   verbose = 0;
 
   while((c = getopt(argc, argv, options)) != -1){
@@ -171,6 +178,14 @@ int main(int argc,char **argv) {
       case 'v':
         //print all debug info
         verbose = 1;
+        break;
+      case '1':
+        vprintf("PLAYER ONE\n");
+        player = 1;
+        break;
+      case '2':
+        vprintf("PLAYER TWO\n");
+        player = 2;
         break;
       default:
         printf("invalid option\n"); 
@@ -192,21 +207,44 @@ int main(int argc,char **argv) {
   printf("\nWaiting to join game.");
   while (!ready) {
     printf(".");
+    fflush(stdout);
     sleep(2);
     ready = send_req_to_server(POLL, serv_ip, uid);
   }
   printf("\nGame found!\n");
 
   /* Get ship input from user */
-  ship ships[5];
-  setup_game_ships(ships);  
+  // ship ships[5];
+  // setup_game_ships(ships);  
+
+  /* DEBUG */
+  int wait;
+  ship test_ships[5];
+  switch (player) {
+    case 1:
+      setup_p1_ship_fixtures(test_ships);
+      wait = 0;
+      break;
+    case 2:
+      setup_p2_ship_fixtures(test_ships);
+      wait = 3;
+      break;
+    default:
+      break;
+  }
+
   printf("Validating ships");
   do {
     printf(".");
-    ready = send_ships_to_server(serv_ip, uid, ships);
+    fflush(stdout);
+    //ready = send_ships_to_server(serv_ip, uid, ships);
+    sleep(wait);
+    ready = send_ships_to_server(serv_ip, uid, test_ships);
   } while (ready == -1);
   printf("\n");
   
+  printf("VALIDATED!\n");
+  fflush(stdout);
 
   /* WAIT FOR GAME TO START OR PLAY IF P2 */
 

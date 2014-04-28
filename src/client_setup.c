@@ -164,3 +164,53 @@ void setup_game_ships(ship ships[5]) {
     print_ships_board(board);
   }
 }
+
+void setup_p1_ship_fixtures(ship ships[5]) {
+  int ship_lens[] = {2, 3, 3, 4, 5};
+  int i, row, col, r = 3, c = 0;
+  char board[BOARD_LEN][BOARD_LEN];
+  ship *s;
+
+  /* Initialize ships board to empty */
+  for (row = 0; row < BOARD_LEN; row++) {
+    for (col = 0; col < BOARD_LEN; col++) {
+      board[row][col] = '0';
+    }
+  }
+
+  for (i = 0; i < 5; i++) {
+    s = &ships[i];
+    s->sid = i;
+    s->ori = 1;
+    s->len = ship_lens[i];
+    s->row = r++;
+    s->col = c;
+    add_ship_to_board(s, board);
+  }
+    print_ships_board(board);
+}
+
+void setup_p2_ship_fixtures(ship ships[5]) {
+  int ship_lens[] = {2, 3, 3, 4, 5};
+  int i, row, col, r = 0, c = 3;
+  char board[BOARD_LEN][BOARD_LEN];
+  ship *s;
+
+  /* Initialize ships board to empty */
+  for (row = 0; row < BOARD_LEN; row++) {
+    for (col = 0; col < BOARD_LEN; col++) {
+      board[row][col] = '0';
+    }
+  }
+
+  for (i = 0; i < 5; i++) {
+    s = &ships[i];
+    s->sid = i;
+    s->ori = 0;
+    s->len = ship_lens[i];
+    s->row = r;
+    s->col = c++;
+    add_ship_to_board(s, board);
+  }
+    print_ships_board(board);
+}
