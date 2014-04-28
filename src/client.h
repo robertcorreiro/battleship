@@ -32,12 +32,15 @@ typedef struct {
 typedef struct {
   char *serv_ip;
   int uid;
+  move_rc m;  
 } request;
 
 typedef struct {
   char ready;
   char my_turn;
   char status;
+  char row;
+  char col;
   game_state state;
 } response;
 

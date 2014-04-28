@@ -133,25 +133,35 @@ int send_req_to_server(request *req, response *res, message_type type) {
 
   /* TODO: fix hardcoding */
   switch (type) {
-    case JOIN:
+    case JOIN:  /* [JOIN][UID-4bytes][LEN=0] */
       //vprintf("Sending a JOIN\n");
+      msg.len = 6;
       msg.buf[0] = 0;
+      intptr = (int*)&msg.buf[1];
+      *intptr = req->uid; 
+      msg.buf[5] = 0;
       break;
-    case POLL:
+    case POLL:  /* [POLL][UID-4bytes][LEN=0] */
       //vprintf("Sending a POLL\n");
+      msg.len = 6;
       msg.buf[0] = 3;
+      intptr = (int*)&msg.buf[1];
+      *intptr = req->uid; 
+      msg.buf[5] = 0;
+      break;
+    case MOVE:  /* [MOVE][UID-4bytes][LEN=2][X(COL)][Y[ROW]]*/
+      msg.len = 8;
+      msg.buf[0] = 2;
+      intptr = (int*)&msg.buf[1];
+      *intptr = req->uid; 
+      msg.buf[5] = 2;
+      msg.buf[6] = req->m.col;
+      msg.buf[7] = req->m.row;
       break;
     default:
       break;
   }
 
-  /* TODO: fix hardcoding */
-  msg.len = 6;  
-  intptr = (int*)&msg.buf[1];
-  *intptr = req->uid; 
-  // intptr = (int*)&msg.buf[5];
-  // *intptr = msg.len; 
-  msg.buf[5] = 0;
 
   if (write(sockfd, msg.buf, msg.len) == -1) {
     perror("client: write failed in send_req_to_server");
@@ -161,18 +171,71 @@ int send_req_to_server(request *req, response *res, message_type type) {
   //vprintf("After write()\n");
 
   /* TODO: fix hardcoding */
+  switch(res->state) {
+    /* JOIN/POLL => [GO INTO SETUP?] */
+    case WAITING:  
+      if (read(sockfd, &(res->ready), 1) != 1) {
+        perror("client-waiting: failed to read reponse");
+        return -1;
+      }    
+      break;
+    
+    /* INIT/POLL => [PLAY MODE?][MY TURN?] */
+    case SETUP:  
+      if (read(sockfd, &(res->ready), 1) != 1) {
+        perror("client-setup: failed to read reponse 1");
+        return -1;
+      }
+      
+      if (read(sockfd, &(res->my_turn), 1) != 1) {
+        perror("client-setup: failed to read reponse 1");
+        return -1;
+      }
+      break;
+    
+    /* MOVE => [HIT, MISS, or ERROR] */
+    /* POLL => [PLAY MODE?][MY TURN?][Opponent's X (col)][Opponent's Y (row)] */
+    case PLAY:
+      switch(type) {
+        case MOVE:
+          if (read(sockfd, &(res->status), 1) != 1) {
+            perror("client-play: failed to read reponse 1");
+            return -1;
+          }
+          //vprintf("s: res->status=%d\n", res->status);
+          break;
 
-  /* EXPAND THIS FOR DIFFERENT STATES */
-  if (read(sockfd, &(res->ready), 1) != 1) {
-    perror("client: failed to read 1 join/poll reponse");
-    return -1;
-  }
+        case POLL:
+          if (read(sockfd, &(res->ready), 1) != 1) {
+            perror("client-play: failed to read reponse 1");
+            return -1;
+          }
+      
+          if (read(sockfd, &(res->my_turn), 1) != 1) {
+            perror("client-play: failed to read reponse 2");
+            return -1;
+          }
 
-  if (res->state == SETUP || res->state == PLAY) {
-    if (read(sockfd, &(res->my_turn), 1) != 1) {
-      perror("client: failed to read 2 join/poll reponse");
-      return -1;
-    }    
+          if (read(sockfd, &(res->col), 1) != 1) {
+            perror("client-play: failed to read reponse 3");
+            return -1;
+          }
+          //vprintf("s: res->col (x)=%d\n", res->col);
+          
+          if (read(sockfd, &(res->row), 1) != 1) {
+            perror("client-play: failed to read reponse 4");
+            return -1;
+          }
+          //vprintf("s: res->row (y)=%d\n", res->row);
+
+          break;
+        default:
+          break;
+      }
+      break;
+
+    default:
+      break;
   }
 
   if (close(sockfd) == -1) {
@@ -238,83 +301,95 @@ int get_move(move_rc *m) {
   return 1;
 }
 
-int send_move_to_server(request *req, response *res, move_rc *m) {
-  /* TODO: don't open new socket for each call to this function */
-  int i, *intptr, sockfd = get_socket(req->serv_ip);
-  message msg;
-
-  /* TODO: fix hardcoding */
-  msg.len = 8; 
-  msg.buf[0] = 2;  /* sets first char of buf (msg_type) to MOVE */
-  intptr = (int *)&msg.buf[1];  /* sets next 4 bytes to int uid */
-  *intptr = req->uid;
-  msg.buf[5] = 2;  /* payload length = 2 bytes */
-
-  /* Because server parses using column-major... (oddly) */
-  msg.buf[6] = m->col;
-  msg.buf[7] = m->row;
-
-  if (write(sockfd, msg.buf, msg.len) == -1) {
-    perror("client: write failed in send_move_to_server");
-    return -1;
+int update_guess_board(char board[BOARD_LEN][BOARD_LEN], move_rc m, char status) {
+  switch (status) {
+    case -1:  /* error */
+      return -1;
+    case 0:  /* miss */
+      board[m.row][m.col] = '-';
+      break;
+    case 1:
+      board[m.row][m.col] = '!';
+      break;
+    default:
+      return -1;
   }
-
-  if (read(sockfd, &(res->status), 1) != 1) {
-    perror("client: read failed in send_move_to_server");
-    return -1;
-  }
-
-  if (close(sockfd) == -1) {
-    perror("client: failed to close socket in send_move_to_server");
-    return -1;
-  }
-  
-  return res->status;
+  return 1;
 }
 
 int move(request *req, response *res, char guess_board[BOARD_LEN][BOARD_LEN]) {
-  move_rc m;
 
   printf("Your Turn!\n");
 
   /* Get move input from user */
-  if (get_move(&m) == -1) {
+  if (get_move(&req->m) == -1) {
     printf("Invalid move. Try again.\n");
     return -1;
   }
 
   /* Check if they've already guessed this location */
-  if (guess_board[m.row][m.col] != 'X') {
+  if (guess_board[req->m.row][req->m.col] != 'X') {
     printf("Already fired at this location. Try again.\n");
     return -1;
   }
   
   /* Trasmit user's move to the server */
-  if (send_move_to_server(req, res, &m) == -1) {
+  if (send_req_to_server(req, res, MOVE) == -1) {
     printf("Move failed.\n");
     return -1;
   }
 
+  if (update_guess_board(guess_board, req->m, res->status) == -1) {
+    printf("Failed to update board.\n");
+    return -1;
+  }
+    
   return 1;
+}
+
+void update_ships_board(response *res, char board[BOARD_LEN][BOARD_LEN]) {
+  switch (board[res->row][res->col]) {
+    case '-':
+    case '!':
+      break;
+    case 'X':
+      board[res->row][res->col] = '-';
+      break;
+    default:
+      board[res->row][res->col] = '!';
+      break;
+  }
 }
 
 void game_loop(request *req, response *res, char ships_board[BOARD_LEN][BOARD_LEN]) {
   char guess_board[BOARD_LEN][BOARD_LEN];
   empty_board(guess_board);
 
+  if (!res->my_turn) {
+    print_board(guess_board);
+    print_board(ships_board);
+    printf("--------------------------------------------------\n\n");
+  }
+
   while (1) {
     if (!res->my_turn) {
       printf("\nOpponent is firing a shot");
       poll_server(req, res);
       printf("\n");
-      // update_ships_board?
+      update_ships_board(res, ships_board);
     }
 
     print_board(guess_board);
     print_board(ships_board);
-     
+
+    printf("--------------------------------------------------\n\n");
     if (move(req, res, guess_board) == -1) continue;
-    //update_guess_board(res->status, guess_board);
+    printf("--------------------------------------------------\n\n");
+    // res: [HIT OR MISS OR ERROR]
+    print_board(guess_board);
+    print_board(ships_board);
+    if (res->status == 1) printf("\tHIT!\n");
+    if (res->status == 0) printf("\tMISS!\n");
     res->my_turn = 0;
   }
 }
@@ -350,7 +425,7 @@ int main(int argc,char **argv) {
   }
 
   /* Verify server is up and working */
-  printf("Connecting");
+  printf("Connecting..");
   do {
     printf(".");
     fflush(stdout);
@@ -362,10 +437,10 @@ int main(int argc,char **argv) {
 
   /* Poll until 2nd player joins */
   if (!res.ready) {
-    printf("Searching for game.");
+    printf("\nSearching for game..");
     poll_server(&req, &res);
   }
-  printf("\nGame found!\n");
+  printf("\n\nGame found!\n\n");
 
   /* Get ship input from user */
   ship ships[5];
@@ -405,12 +480,11 @@ int main(int argc,char **argv) {
   // vprintf("main:res.my_turn=%d\n", res.my_turn);
 
   if (!res.ready) {
-    printf("Waiting for game to start");
+    printf("Waiting for game to start..");
     poll_server(&req, &res);
   }
-  printf("\nGAME START!\n");
+  printf("\n\nGAME START!\n\n");
 
-  //game_loop(&req, &res, board);
   res.state = PLAY;
   game_loop(&req, &res, board);
 
