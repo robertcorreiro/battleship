@@ -173,12 +173,12 @@ void build_response(battleship *game, message *msg_in, message *msg_out) {
             board *other_bd = (!(game->turn))?&(game->p1_board):&(game->p2_board);
             playerID = get_player_id(msg_in);
             if(playerID == p.uid){
-              vprintf("got a move from player %d\n",game->sync);
+              vprintf("got a move from player %d\n",1 + game->sync);
               int x, y;
-              x = msg_in->buf[7];
-              y = msg_in->buf[8];
+              x = msg_in->buf[6];
+              y = msg_in->buf[7];
               if(bd->guesses[x][y] == NOTHING){
-                int hit = other_bd->ships[x][y] == SHIP;
+                int hit = other_bd->ships[y][x] == SHIP;
                 bd->guesses[x][y] = 1 + hit;
                 msg_out->buf[0] = hit;
                 game->turn = !game->turn;
