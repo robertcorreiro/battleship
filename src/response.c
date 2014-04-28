@@ -79,9 +79,11 @@ void build_response(battleship *game, message *msg_in, message *msg_out) {
           playerID = get_player_id(msg_in);
           if(game->p1.uid == playerID){
             msg_out->buf[0] = 1 - game->sync;
+            msg_out->len = 1;
             if(!game->sync){
               vprintf("going to SETUP state\n");
               game->state = SETUP;
+              game->turn = rand() % 2;
             }
           }
           break;
@@ -127,6 +129,10 @@ void build_response(battleship *game, message *msg_in, message *msg_out) {
               vprintf("error making board!\n");
             }else{
               vprintf("board successfully created!\n");
+              int is_player1 = game->p1.uid == playerID;
+              msg_out->buf[0] = 1 - game->sync;
+              msg_out->buf[1] = (game->turn - is_player1) == 0;
+              msg_out->len = 2;
             }
             int i,j;
             char *icons = "~#@";
@@ -150,7 +156,10 @@ void build_response(battleship *game, message *msg_in, message *msg_out) {
           vprintf("got a poll!\n");
           playerID = get_player_id(msg_in);
           if(game->p1.uid == playerID || game->p2.uid == playerID){
+            int is_player1 = game->p1.uid == playerID;
             msg_out->buf[0] = 1 - game->sync;
+            msg_out->buf[1] = (game->turn - is_player1) == 0;
+            msg_out->len = 2;
             if(!game->sync){
               vprintf("going to PLAY state\n");
               game->state = PLAY;
@@ -165,19 +174,32 @@ void build_response(battleship *game, message *msg_in, message *msg_out) {
       switch(type){
         case MOVE:
           {
-            player p = (game->sync)?game->p1:game->p2;
-            player other_p = (!(game->sync))?game->p1:game->p2;
-            board *bd = (game->sync)?&(game->p1_board):&(game->p2_board);
-            board *other_bd = (!(game->sync))?&(game->p1_board):&(game->p2_board);
+            player p = (game->turn)?game->p1:game->p2;
+            player other_p = (!(game->turn))?game->p1:game->p2;
+            board *bd = (game->turn)?&(game->p1_board):&(game->p2_board);
+            board *other_bd = (!(game->turn))?&(game->p1_board):&(game->p2_board);
             playerID = get_player_id(msg_in);
             if(playerID == p.uid){
               vprintf("got a move from player %d\n",game->sync);
-              
-              
+              int x, y;
+              x = msg_in->buf[7];
+              y = msg_in->buf[8];
+              if(bd->guesses[x][y] == NOTHING){
+                int hit = other_bd->ships[x][y] == SHIP;
+                bd->guesses[x][y] = 1 + hit;
+                msg_out->buf[0] = hit;
+                game->turn = !game->turn;
+                game->last_guess_x = x;
+                game->last_guess_y = y;
+                game->hit = hit;
+              }else{
+                msg_out->buf[0] = -1;
+              }
+              msg_out->len = 1;
             }else if(playerID == other_p.uid){
               vprintf("got an out of turn move from player %d\n",game->sync);
-              
-              
+              msg_out->buf[0] = -1;
+              msg_out->len = 1;
             }else{
               vprintf("invalid uid\n");
             }
@@ -187,12 +209,18 @@ void build_response(battleship *game, message *msg_in, message *msg_out) {
           playerID = get_player_id(msg_in);
           if(playerID == game->p1.uid){
             vprintf("got a poll from player 1\n");
-            
-            
+            msg_out->buf[0] = game->turn;
+            msg_out->buf[1] = game->hit;
+            msg_out->buf[2] = game->last_guess_x;
+            msg_out->buf[3] = game->last_guess_y;
+            msg_out->len = 4;
           }else if(playerID == game->p2.uid){
             vprintf("got a poll from player 2\n");
-            
-            
+            msg_out->buf[0] = !game->turn;
+            msg_out->buf[1] = game->hit;
+            msg_out->buf[2] = game->last_guess_x;
+            msg_out->buf[3] = game->last_guess_y;
+            msg_out->len = 4;
           }else{
             vprintf("invalid uid\n");
           }
