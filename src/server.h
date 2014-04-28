@@ -48,6 +48,7 @@ typedef struct {
 
 typedef struct {
   int setup;
+  int hits;
   char ships[BOARD_LEN][BOARD_LEN];
   char guesses[BOARD_LEN][BOARD_LEN];
 } board;
@@ -60,7 +61,6 @@ typedef struct {
   int turn;
   board p1_board;
   board p2_board;
-  int hit;
   int last_guess_x;
   int last_guess_y;
 } battleship;
