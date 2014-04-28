@@ -181,12 +181,14 @@ void build_response(battleship *game, message *msg_in, message *msg_out) {
                 int hit = other_bd->ships[y][x] == SHIP;
                 bd->guesses[x][y] = 1 + hit;
                 other_bd->hits += hit;
-                msg_out->buf[0] = hit;
+                msg_out->buf[0] = other_bd->hits == 17;
+                msg_out->buf[1] = hit;
                 game->turn = !game->turn;
                 game->last_guess_x = x;
                 game->last_guess_y = y;
               }else{
-                msg_out->buf[0] = -1;
+                msg_out->buf[0] = 0;
+                msg_out->buf[1] = -1;
               }
               msg_out->len = 1;
               int i,j;
