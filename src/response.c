@@ -190,7 +190,7 @@ void build_response(battleship *game, message *msg_in, message *msg_out) {
                 msg_out->buf[0] = 0;
                 msg_out->buf[1] = -1;
               }
-              msg_out->len = 1;
+              msg_out->len = 2;
               int i,j;
               char *icons = "~#@";
               for(i=0;i<BOARD_LEN;i++){

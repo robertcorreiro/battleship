@@ -25,6 +25,9 @@
 
 #define SERVER_PORT "5050"  /* TODO: REMOVE THIS */
 
+#define HIT_MARK 'X'
+#define MISS_MARK 'O'
+
 int verbose;
 
 // void *get_in_addr(struct sockaddr *sa) {
@@ -198,8 +201,14 @@ int send_req_to_server(request *req, response *res, message_type type) {
     case PLAY:
       switch(type) {
         case MOVE:
+          if (read(sockfd, &(res->ready), 1) != 1) {
+            perror("client-move: failed to read reponse 1");
+            return -1;
+          }
+          //vprintf("s: res->ready=%d\n", res->ready);
+
           if (read(sockfd, &(res->status), 1) != 1) {
-            perror("client-play: failed to read reponse 1");
+            perror("client-move: failed to read reponse 2");
             return -1;
           }
           //vprintf("s: res->status=%d\n", res->status);
@@ -263,14 +272,14 @@ void poll_server(request *req, response *res) {
   }
 
   if (res->state == PLAY) {
-    while (!res->my_turn) {
+    while (!res->my_turn && !res->ready) {
       printf(".");
       fflush(stdout);
       sleep(2);
       send_req_to_server(req, res, POLL);
-      // vprintf("\nPLAY:\n");
-      // vprintf("poll_server:res->ready=%d\n", res->ready);
-      // vprintf("poll_server:res->my_turn=%d\n", res->my_turn);
+      vprintf("\nPLAY:\n");
+      vprintf("poll_server:res->ready=%d\n", res->ready);
+      vprintf("poll_server:res->my_turn=%d\n", res->my_turn);
     }
   }
 }
@@ -306,10 +315,10 @@ int update_guess_board(char board[BOARD_LEN][BOARD_LEN], move_rc m, char status)
     case -1:  /* error */
       return -1;
     case 0:  /* miss */
-      board[m.row][m.col] = 'M';
+      board[m.row][m.col] = MISS_MARK;
       break;
     case 1:
-      board[m.row][m.col] = 'H';
+      board[m.row][m.col] = HIT_MARK;
       break;
     default:
       return -1;
@@ -349,14 +358,14 @@ int move(request *req, response *res, char guess_board[BOARD_LEN][BOARD_LEN]) {
 
 void update_ships_board(response *res, char board[BOARD_LEN][BOARD_LEN]) {
   switch (board[res->row][res->col]) {
-    case 'M':
-    case 'H':
+    case MISS_MARK:
+    case HIT_MARK:
       break;
     case '~':
-      board[res->row][res->col] = 'M';
+      board[res->row][res->col] = MISS_MARK;
       break;
     default:
-      board[res->row][res->col] = 'H';
+      board[res->row][res->col] = HIT_MARK;
       printf("\n>>You've been HIT!<<\n\n");
       break;
   }
@@ -372,12 +381,17 @@ void game_loop(request *req, response *res, char ships_board[BOARD_LEN][BOARD_LE
     printf("--------------------------------------------------\n\n");
   }
 
+  res->ready = 0;
   while (1) {
     if (!res->my_turn) {
       printf("\nOpponent is firing a shot");
       poll_server(req, res);
       printf("\n");
       update_ships_board(res, ships_board);
+      if (res->ready) {
+        printf("GAME OVER! - YOU'VE LOST...\n");   
+        break;
+      }
     }
 
     print_board(guess_board);
@@ -385,12 +399,17 @@ void game_loop(request *req, response *res, char ships_board[BOARD_LEN][BOARD_LE
 
     printf("--------------------------------------------------\n\n");
     if (move(req, res, guess_board) == -1) continue;
+    if (res->status == 1) printf("\tHIT!\n");
+    if (res->status == 0) printf("\tMISS!\n");
     printf("--------------------------------------------------\n\n");
+    
+    if (res->ready) {
+      printf("GAME OVER! - YOU'VE WON!\n"); 
+      break;
+    }
     // res: [HIT OR MISS OR ERROR]
     print_board(guess_board);
     print_board(ships_board);
-    if (res->status == 1) printf("\tHIT!\n");
-    if (res->status == 0) printf("\tMISS!\n");
     res->my_turn = 0;
   }
 }
