@@ -130,6 +130,7 @@ void build_response(battleship *game, message *msg_in, message *msg_out) {
             }else{
               vprintf("board successfully created!\n");
               int is_player1 = game->p1.uid == playerID;
+              game->sync = !game->sync;
               msg_out->buf[0] = 1 - game->sync;
               msg_out->buf[1] = (game->turn - is_player1) == 0;
               msg_out->len = 2;
@@ -141,14 +142,6 @@ void build_response(battleship *game, message *msg_in, message *msg_out) {
                 vprintf("%c",icons[new_board->ships[i][j]]);
               }
               vprintf("\n");
-            }
-            if(error){
-              return;
-            }
-            if(game->sync){
-              game->sync = 0;
-            }else{
-              game->sync = 1;
             }
           }
           break;
@@ -191,13 +184,23 @@ void build_response(battleship *game, message *msg_in, message *msg_out) {
                 game->turn = !game->turn;
                 game->last_guess_x = x;
                 game->last_guess_y = y;
-                game->hit = hit;
               }else{
                 msg_out->buf[0] = -1;
               }
               msg_out->len = 1;
+              int i,j;
+              char *icons = "~#@";
+              for(i=0;i<BOARD_LEN;i++){
+                for(j=0;j<BOARD_LEN;j++){
+                  vprintf("%c",icons[game->p1_board.ships[i][j]]);
+                }
+                for(j=0;j<BOARD_LEN;j++){
+                  vprintf("%c",icons[game->p2_board.ships[i][j]]);
+                }
+                vprintf("\n");
+              }
             }else if(playerID == other_p.uid){
-              vprintf("got an out of turn move from player %d\n",game->sync);
+              vprintf("got an out of turn move from player %d\n",1+game->turn);
               msg_out->buf[0] = -1;
               msg_out->len = 1;
             }else{
@@ -209,15 +212,15 @@ void build_response(battleship *game, message *msg_in, message *msg_out) {
           playerID = get_player_id(msg_in);
           if(playerID == game->p1.uid){
             vprintf("got a poll from player 1\n");
-            msg_out->buf[0] = game->turn;
-            msg_out->buf[1] = game->hit;
+            msg_out->buf[0] = game->p1_board.hits == 17;
+            msg_out->buf[1] = game->turn;
             msg_out->buf[2] = game->last_guess_x;
             msg_out->buf[3] = game->last_guess_y;
             msg_out->len = 4;
           }else if(playerID == game->p2.uid){
             vprintf("got a poll from player 2\n");
-            msg_out->buf[0] = !game->turn;
-            msg_out->buf[1] = game->hit;
+            msg_out->buf[0] = game->p2_board.hits == 17;
+            msg_out->buf[1] = !game->turn;
             msg_out->buf[2] = game->last_guess_x;
             msg_out->buf[3] = game->last_guess_y;
             msg_out->len = 4;
