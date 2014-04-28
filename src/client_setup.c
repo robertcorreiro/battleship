@@ -50,15 +50,19 @@ int set_ship_position(ship *s) {
   int i, row, col;
 
   printf("Enter initial position: ");
-  for (i = 0; i < 3; i++) {
+  for (i = 0; i < 4; i++) {
     int c = getchar();
     if (c == EOF) {
-      if (i == 2) break;
+      if (i == 2 || i == 3) break;
       return -1;
     }
     if (i == 0) row = c - 65;
     if (i == 1) col = c - 49;
+    if (i == 2) col += 9;
   }
+
+  vprintf("set_ship_position: row=%d\n", row);
+  vprintf("set_ship_position: col=%d\n", col);
 
   /* validation */
   if (row < 0 || row > 9 || col < 0 || col > 9) {
@@ -81,10 +85,12 @@ int set_ship_orientation(ship *s) {
   switch(c) {
     case 'h':
     case 'H':
+      vprintf("set_ship_orientation: horizontal\n");
       s->ori = 1;
       break;
     case 'v':
     case 'V':
+      vprintf("set_ship_orientation: vertical\n");
       s->ori = 0;
       break;
     default:
@@ -97,31 +103,43 @@ int set_ship_orientation(ship *s) {
 int validate_ship_placement(ship *s, char board[BOARD_LEN][BOARD_LEN]) {
   int i;
 
-  // vprintf("row=%d\ncol=%d\nori=%d\nlen=%d\n\n",s->row,s->col,s->ori,s->len);
+  vprintf("row=%d\ncol=%d\nori=%d\nlen=%d\n\n",s->row,s->col,s->ori,s->len);
 
   /* Horizontal validations */
   if (s->ori) {  
     /* Check running over the edge */
-    if (s->col + (s->len) - 1 > 9) return -1;
+    if (s->col + (s->len) - 1 > 9) {
+      vprintf("Horiz_valid: Ran over the edge\n");
+      return -1;
+    }
 
     /* Horizontal collision? */
     int col = s->col;
     for (i = 0; i < s->len; i++, col++) {
       /* don't allow if something's already in the spot */
       /* TODO: change to WATER instead of 0 */
-      if (board[s->row][col] != '0') return -1;
+      if (board[s->row][col] != 'X') {
+        vprintf("Horiz_valid: Collision!\n");
+        return -1;
+      }
     }
   } 
   /* Vertical validations */
   else {  
     /* Check running over the edge */
-    if (s->row + (s->len) - 1 > 9) return -1;
+    if (s->row + (s->len) - 1 > 9) {
+      vprintf("Vert_valid: Ran over the edge\n");
+      return -1;
+    }
 
     /* Vertical collision? */
     int row = s->row;
     for (i = 0; i < s->len; i++, row++) {
       /* TODO: change to WATER instead of 0 */
-      if (board[row][s->col] != '0') return -1;
+      if (board[row][s->col] != 'X') {
+        vprintf("Vert_valid: Collision!\n");
+        return -1;
+      }
     }
   }
   return 1;

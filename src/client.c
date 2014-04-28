@@ -104,6 +104,8 @@ int send_ships_to_server(request *req, response *res, ship ships[5]) {
     return -1;
   }
 
+  vprintf("before read: res->ready=%d\n", res->ready);
+
   if (read(sockfd, &(res->ready), 1) != 1) {
     perror("client: read 1 failed in send_ships_to_server");
     return -1;
@@ -113,6 +115,8 @@ int send_ships_to_server(request *req, response *res, ship ships[5]) {
     perror("client: read 2 failed in send_ships_to_server");
     return -1;
   }
+
+  //vprintf("send_ships_to_server:res->ready=%d, res->my_turn=%d\n", res->ready, res->my_turn);
 
   if (close(sockfd) == -1) {
     perror("client: failed to close socket in send_ships_to_server");
@@ -157,6 +161,8 @@ int send_req_to_server(request *req, response *res, message_type type) {
   //vprintf("After write()\n");
 
   /* TODO: fix hardcoding */
+
+  /* EXPAND THIS FOR DIFFERENT STATES */
   if (read(sockfd, &(res->ready), 1) != 1) {
     perror("client: failed to read 1 join/poll reponse");
     return -1;
@@ -187,6 +193,9 @@ void poll_server(request *req, response *res) {
       fflush(stdout);
       sleep(2);
       send_req_to_server(req, res, POLL);
+      // vprintf("\nWAIT/SETUP:\n");
+      // vprintf("poll_server:res->ready=%d\n", res->ready);
+      // vprintf("poll_server:res->my_turn=%d\n", res->my_turn);
     }
   }
 
@@ -196,6 +205,9 @@ void poll_server(request *req, response *res) {
       fflush(stdout);
       sleep(2);
       send_req_to_server(req, res, POLL);
+      vprintf("\nPLAY:\n");
+      vprintf("poll_server:res->ready=%d\n", res->ready);
+      vprintf("poll_server:res->my_turn=%d\n", res->my_turn);
     }
   }
 }
@@ -306,7 +318,7 @@ void game_loop(request *req, response *res, char ships_board[BOARD_LEN][BOARD_LE
 }
 
 int main(int argc,char **argv) {
-  int sockfd, uid, ready, player;
+  int sockfd, uid, ready, player = 0;
   int wait = 0;
   char c;
 
@@ -344,6 +356,8 @@ int main(int argc,char **argv) {
   } while (ready == -1);
   printf("\n");
 
+  //vprintf("main:res.ready=%d - 1\n", res.ready);
+
   /* Poll until 2nd player joins */
   if (!res.ready) {
     printf("Waiting to join game.");
@@ -351,47 +365,52 @@ int main(int argc,char **argv) {
   }
   printf("\nGame found!\n");
 
+  /* Get ship input from user */
+  ship ships[5];
+  char board[BOARD_LEN][BOARD_LEN];
+  res.state = SETUP;
+  res.ready = 0;
+
   /* SET UP FIXTURES FOR TESTING */
-  ship test_ships[5];
-  char test_board[BOARD_LEN][BOARD_LEN];
-  switch (player) {
-    case 1:
-      setup_p1_fixtures(test_ships, test_board);
-      break;
-    case 2:
-      setup_p2_fixtures(test_ships, test_board);
-      wait = 3;
-      break;
-    default:
-      break;
+  if (player) {
+    switch (player) {
+      case 1:
+        setup_p1_fixtures(ships, board);
+        break;
+      case 2:
+        setup_p2_fixtures(ships, board);
+        wait = 3;
+        break;
+      default:
+        break;
+    }
+  } else {
+    setup_game(ships, board);  
   }
 
-  /* Get ship input from user */
-  // ship ships[5];
-  // char board[BOARD_LEN][BOARD_LEN]
-  // setup_game(ships, board);  
-  res.state = SETUP;
-  printf("Validating ships");
+  printf("%d - Validating ships", (int) time(NULL));
   do {
     printf(".");
     fflush(stdout);
-    //ready = send_ships_to_server(serv_ip, uid, ships);
     sleep(wait);  /* testing */
-    ready = send_ships_to_server(&req, &res, test_ships);
+    //vprintf("main:res.ready=%d - 1\n", res.ready);
+    ready = send_ships_to_server(&req, &res, ships);
+    //vprintf("main:res.ready=%d - 2\n", res.ready);
   } while (ready == -1);
-  printf("..Success\n");
+  printf("..Success - %d\n", (int) time(NULL));
     
-  //vprintf("ready=%d\n", ready);
+  vprintf("main:res.ready=%d\n", res.ready);
+  vprintf("main:res.my_turn=%d\n", res.my_turn);
 
   if (!res.ready) {
-    printf("Waiting for other player");
+    printf("Waiting for game to start");
     poll_server(&req, &res);
   }
   printf("\nGAME START!\n");
 
   //game_loop(&req, &res, board);
   res.state = PLAY;
-  game_loop(&req, &res, test_board);
+  game_loop(&req, &res, board);
 
   return EXIT_SUCCESS;
 }

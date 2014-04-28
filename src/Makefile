@@ -52,6 +52,9 @@ ${BUILDDIR}/client_setup.o: client_setup.c
 ts:
 	../bin/server -v
 
+tc:
+	../bin/client -v 127.0.0.1
+
 tc1:
 	../bin/client -v1 127.0.0.1
 
