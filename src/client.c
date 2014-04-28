@@ -45,7 +45,7 @@ int get_socket(char *serv_ip) {
   hints.ai_family = AF_UNSPEC;
   hints.ai_socktype = SOCK_STREAM;
   
-  if ((rv = getaddrinfo(serv_ip, SERVER_PORT, &hints, &results)) != 0) {
+  if ((rv = getaddrinfo("127.0.0.1", SERVER_PORT, &hints, &results)) != 0) {
     fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv));
     return 1;
   }
@@ -76,8 +76,9 @@ int get_socket(char *serv_ip) {
   return sockfd;
 }
 
-int send_ships_to_server(char *serv_ip, int uid, ship ships[5]) {
-  int i, *intptr, sockfd = get_socket(serv_ip);
+int send_ships_to_server(request *req, response *res, ship ships[5]) {
+  /* TODO: don't open new socket for each call to this function */
+  int i, *intptr, sockfd = get_socket(req->serv_ip);
   char rv;
   message msg;
 
@@ -85,7 +86,7 @@ int send_ships_to_server(char *serv_ip, int uid, ship ships[5]) {
   msg.len = 26; 
   msg.buf[0] = 1;  /* sets first char of buf (msg_type) to INIT */
   intptr = (int *)&msg.buf[1];  /* sets next 4 bytes to int uid */
-  *intptr = uid;
+  *intptr = req->uid;
   // intptr = (int *)&msg.buf[5];  /* sets 6th byte to len of msg */
   // *intptr = msg.len;
   msg.buf[5] = 20;
@@ -103,8 +104,13 @@ int send_ships_to_server(char *serv_ip, int uid, ship ships[5]) {
     return -1;
   }
 
-  if (read(sockfd, &rv, 1) != 1) {
-    perror("client: read failed in send_ships_to_server");
+  if (read(sockfd, &(res->ready), 1) != 1) {
+    perror("client: read 1 failed in send_ships_to_server");
+    return -1;
+  }
+
+  if (read(sockfd, &(res->my_turn), 1) != 1) {
+    perror("client: read 2 failed in send_ships_to_server");
     return -1;
   }
 
@@ -113,18 +119,18 @@ int send_ships_to_server(char *serv_ip, int uid, ship ships[5]) {
     return -1;
   }
   
-  return (int) rv;
+  return 1;
 }
 
-int send_req_to_server(message_type type, char *serv_ip, int uid) {
-  int sockfd = get_socket(serv_ip), *intptr;
-  char rv;
+int send_req_to_server(request *req, response *res, message_type type) {
+  /* TODO: don't open new socket for each call to this function */
+  int sockfd = get_socket(req->serv_ip), *intptr;
   message msg;
 
   /* TODO: fix hardcoding */
   switch (type) {
     case JOIN:
-      vprintf("Sending a JOIN\n");
+      //vprintf("Sending a JOIN\n");
       msg.buf[0] = 0;
       break;
     case POLL:
@@ -138,7 +144,7 @@ int send_req_to_server(message_type type, char *serv_ip, int uid) {
   /* TODO: fix hardcoding */
   msg.len = 6;  
   intptr = (int*)&msg.buf[1];
-  *intptr = uid; 
+  *intptr = req->uid; 
   // intptr = (int*)&msg.buf[5];
   // *intptr = msg.len; 
   msg.buf[5] = 0;
@@ -151,29 +157,165 @@ int send_req_to_server(message_type type, char *serv_ip, int uid) {
   //vprintf("After write()\n");
 
   /* TODO: fix hardcoding */
-  if (read(sockfd, &rv, 1) != 1) {
-    perror("client: failed to read join/poll reponse");
+  if (read(sockfd, &(res->ready), 1) != 1) {
+    perror("client: failed to read 1 join/poll reponse");
     return -1;
   }
 
-  //vprintf("After read()\n");
+  if (res->state == SETUP || res->state == PLAY) {
+    if (read(sockfd, &(res->my_turn), 1) != 1) {
+      perror("client: failed to read 2 join/poll reponse");
+      return -1;
+    }    
+  }
 
   if (close(sockfd) == -1) {
     perror("client: failed to close join/poll socket");
     return -1;
   }
 
-  //vprintf("After close()\n");
+  return 1;
+}
 
-  return (int) rv;
+void poll_server(request *req, response *res) {
+  res->ready = 0;
+  res->my_turn = 0;
+
+  if (res->state == WAITING || res->state == SETUP) {
+    while (!res->ready) {
+      printf(".");
+      fflush(stdout);
+      sleep(2);
+      send_req_to_server(req, res, POLL);
+    }
+  }
+
+  if (res->state == PLAY) {
+    while (!res->my_turn) {
+      printf(".");
+      fflush(stdout);
+      sleep(2);
+      send_req_to_server(req, res, POLL);
+    }
+  }
+}
+
+int get_move(move_rc *m) {
+  int i, row, col;
+
+  printf("Enter targeted location: ");
+  for (i = 0; i < 3; i++) {
+    int c = getchar();
+    if (c == EOF) {
+      if (i == 2) break;
+      return -1;
+    }
+    if (i == 0) row = c - 65;
+    if (i == 1) col = c - 49;
+  }
+
+  /* simple validation */
+  if (col < 0 || col > 9 || row < 0 || row > 9) {
+    return -1;
+  }
+
+  m->row = row;
+  m->col = col;
+
+  return 1;
+}
+
+int send_move_to_server(request *req, response *res, move_rc *m) {
+  /* TODO: don't open new socket for each call to this function */
+  int i, *intptr, sockfd = get_socket(req->serv_ip);
+  message msg;
+
+  /* TODO: fix hardcoding */
+  msg.len = 8; 
+  msg.buf[0] = 2;  /* sets first char of buf (msg_type) to MOVE */
+  intptr = (int *)&msg.buf[1];  /* sets next 4 bytes to int uid */
+  *intptr = req->uid;
+  msg.buf[5] = 2;  /* payload length = 2 bytes */
+
+  /* Because server parses using column-major... (oddly) */
+  msg.buf[6] = m->col;
+  msg.buf[7] = m->row;
+
+  if (write(sockfd, msg.buf, msg.len) == -1) {
+    perror("client: write failed in send_move_to_server");
+    return -1;
+  }
+
+  if (read(sockfd, &(res->status), 1) != 1) {
+    perror("client: read failed in send_move_to_server");
+    return -1;
+  }
+
+  if (close(sockfd) == -1) {
+    perror("client: failed to close socket in send_move_to_server");
+    return -1;
+  }
+  
+  return res->status;
+}
+
+int move(request *req, response *res, char guess_board[BOARD_LEN][BOARD_LEN]) {
+  move_rc m;
+
+  /* Get move input from user */
+  if (get_move(&m) == -1) {
+    printf("Invalid move. Try again.\n");
+    return -1;
+  }
+
+  /* Check if they've already guessed this location */
+  if (guess_board[m.row][m.col] != 'X') {
+    printf("Already fired at this location. Try again.\n");
+    return -1;
+  }
+  
+  /* Trasmit user's move to the server */
+  if (send_move_to_server(req, res, &m) == -1) {
+    printf("Move failed.\n");
+    return -1;
+  }
+
+  return 1;
+}
+
+void game_loop(request *req, response *res, char ships_board[BOARD_LEN][BOARD_LEN]) {
+  char guess_board[BOARD_LEN][BOARD_LEN];
+  empty_board(guess_board);
+
+  while (1) {
+    if (!res->my_turn) {
+      printf("Waiting for other player");
+      poll_server(req, res);
+      printf("\n");
+      // update_ships_board?
+    }
+
+    print_board(guess_board);
+    print_board(ships_board);
+    
+    printf("YOUR TURN!\n");
+    if (move(req, res, guess_board) == -1) continue;
+    //update_guess_board(res->status, guess_board);
+    res->my_turn = 0;
+  }
 }
 
 int main(int argc,char **argv) {
   int sockfd, uid, ready, player;
-  char *options = "v12", *serv_ip, c;
-  verbose = 0;
+  int wait = 0;
+  char c;
 
-  while((c = getopt(argc, argv, options)) != -1){
+  srand(time(NULL));
+  request req = {.uid = rand(), .serv_ip = argv[optind]};
+  response res = {.state = WAITING};
+
+  verbose = 0;
+  while((c = getopt(argc, argv, "v12")) != -1){
     switch(c){
       case 'v':
         //print all debug info
@@ -193,60 +335,63 @@ int main(int argc,char **argv) {
     }
   }
 
-  srand(time(NULL));
-  uid = rand();
-  serv_ip = argv[optind];
-
   /* Verify server is up and working */
   printf("Connecting to server");
   do {
     printf(".");
-    ready = send_req_to_server(JOIN, serv_ip, uid); 
-  } while (ready == -1);
-
-  printf("\nWaiting to join game.");
-  while (!ready) {
-    printf(".");
     fflush(stdout);
-    sleep(2);
-    ready = send_req_to_server(POLL, serv_ip, uid);
+    ready = send_req_to_server(&req, &res, JOIN); 
+  } while (ready == -1);
+  printf("\n");
+
+  /* Poll until 2nd player joins */
+  if (!res.ready) {
+    printf("Waiting to join game.");
+    poll_server(&req, &res);
   }
   printf("\nGame found!\n");
 
-  /* Get ship input from user */
-  // ship ships[5];
-  // setup_game_ships(ships);  
-
-  /* DEBUG */
-  int wait;
+  /* SET UP FIXTURES FOR TESTING */
   ship test_ships[5];
+  char test_board[BOARD_LEN][BOARD_LEN];
   switch (player) {
     case 1:
-      setup_p1_ship_fixtures(test_ships);
-      wait = 0;
+      setup_p1_fixtures(test_ships, test_board);
       break;
     case 2:
-      setup_p2_ship_fixtures(test_ships);
+      setup_p2_fixtures(test_ships, test_board);
       wait = 3;
       break;
     default:
       break;
   }
 
+  /* Get ship input from user */
+  // ship ships[5];
+  // char board[BOARD_LEN][BOARD_LEN]
+  // setup_game(ships, board);  
+  res.state = SETUP;
   printf("Validating ships");
   do {
     printf(".");
     fflush(stdout);
     //ready = send_ships_to_server(serv_ip, uid, ships);
-    sleep(wait);
-    ready = send_ships_to_server(serv_ip, uid, test_ships);
+    sleep(wait);  /* testing */
+    ready = send_ships_to_server(&req, &res, test_ships);
   } while (ready == -1);
-  printf("\n");
-  
-  printf("VALIDATED!\n");
-  fflush(stdout);
+  printf("..Success\n");
+    
+  //vprintf("ready=%d\n", ready);
 
-  /* WAIT FOR GAME TO START OR PLAY IF P2 */
+  if (!res.ready) {
+    printf("Waiting for other player");
+    poll_server(&req, &res);
+  }
+  printf("\nGAME START!\n");
+
+  //game_loop(&req, &res, board);
+  res.state = PLAY;
+  game_loop(&req, &res, test_board);
 
   return EXIT_SUCCESS;
 }

@@ -3,7 +3,17 @@
 
 #include <stdio.h>
 
-void print_ships_board(char board[BOARD_LEN][BOARD_LEN]) {
+void empty_board(char board[BOARD_LEN][BOARD_LEN]) {
+  int row, col;
+
+  for (row = 0; row < BOARD_LEN; row++) {
+    for (col = 0; col < BOARD_LEN; col++) {
+      board[row][col] = 'X';
+    }
+  }
+}
+
+void print_board(char board[BOARD_LEN][BOARD_LEN]) {
   int i, j;
   char row_header = 'A';
 
@@ -117,20 +127,13 @@ int validate_ship_placement(ship *s, char board[BOARD_LEN][BOARD_LEN]) {
   return 1;
 }
 
-void setup_game_ships(ship ships[5]) {
+void setup_game(ship ships[5], char ships_board[BOARD_LEN][BOARD_LEN]) {
   int row, col, rv, i;
   int ship_lens[] = {2, 3, 3, 4, 5};
-  char board[BOARD_LEN][BOARD_LEN];
   ship *s;
 
-  /* Initialize ships board to empty */
-  for (row = 0; row < BOARD_LEN; row++) {
-    for (col = 0; col < BOARD_LEN; col++) {
-      board[row][col] = '0';
-    }
-  }
-
-  print_ships_board(board);
+  empty_board(ships_board);
+  print_board(ships_board);
 
   for (i = 0; i < 5; i++) {
     s = &ships[i];
@@ -153,30 +156,24 @@ void setup_game_ships(ship ships[5]) {
         rv = set_ship_orientation(s);
       }
 
-      rv = validate_ship_placement(s, board);
+      rv = validate_ship_placement(s, ships_board);
       if (rv == -1) {
-        print_ships_board(board);
+        print_board(ships_board);
         printf("Invalid placement. Please try again.\n");
       }
     } while (rv == -1);
 
-    add_ship_to_board(s, board);
-    print_ships_board(board);
+    add_ship_to_board(s, ships_board);
+    print_board(ships_board);
   }
 }
 
-void setup_p1_ship_fixtures(ship ships[5]) {
+void setup_p1_fixtures(ship ships[5], char board[BOARD_LEN][BOARD_LEN]) {
   int ship_lens[] = {2, 3, 3, 4, 5};
   int i, row, col, r = 3, c = 0;
-  char board[BOARD_LEN][BOARD_LEN];
   ship *s;
 
-  /* Initialize ships board to empty */
-  for (row = 0; row < BOARD_LEN; row++) {
-    for (col = 0; col < BOARD_LEN; col++) {
-      board[row][col] = '0';
-    }
-  }
+  empty_board(board);
 
   for (i = 0; i < 5; i++) {
     s = &ships[i];
@@ -187,21 +184,15 @@ void setup_p1_ship_fixtures(ship ships[5]) {
     s->col = c;
     add_ship_to_board(s, board);
   }
-    print_ships_board(board);
+    print_board(board);
 }
 
-void setup_p2_ship_fixtures(ship ships[5]) {
+void setup_p2_fixtures(ship ships[5], char board[BOARD_LEN][BOARD_LEN]) {
   int ship_lens[] = {2, 3, 3, 4, 5};
   int i, row, col, r = 0, c = 3;
-  char board[BOARD_LEN][BOARD_LEN];
   ship *s;
 
-  /* Initialize ships board to empty */
-  for (row = 0; row < BOARD_LEN; row++) {
-    for (col = 0; col < BOARD_LEN; col++) {
-      board[row][col] = '0';
-    }
-  }
+  empty_board(board);
 
   for (i = 0; i < 5; i++) {
     s = &ships[i];
@@ -212,5 +203,5 @@ void setup_p2_ship_fixtures(ship ships[5]) {
     s->col = c++;
     add_ship_to_board(s, board);
   }
-    print_ships_board(board);
+    print_board(board);
 }
