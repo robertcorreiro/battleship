@@ -306,10 +306,10 @@ int update_guess_board(char board[BOARD_LEN][BOARD_LEN], move_rc m, char status)
     case -1:  /* error */
       return -1;
     case 0:  /* miss */
-      board[m.row][m.col] = '-';
+      board[m.row][m.col] = 'M';
       break;
     case 1:
-      board[m.row][m.col] = '!';
+      board[m.row][m.col] = 'H';
       break;
     default:
       return -1;
@@ -328,7 +328,7 @@ int move(request *req, response *res, char guess_board[BOARD_LEN][BOARD_LEN]) {
   }
 
   /* Check if they've already guessed this location */
-  if (guess_board[req->m.row][req->m.col] != 'X') {
+  if (guess_board[req->m.row][req->m.col] != '~') {
     printf("Already fired at this location. Try again.\n");
     return -1;
   }
@@ -349,14 +349,15 @@ int move(request *req, response *res, char guess_board[BOARD_LEN][BOARD_LEN]) {
 
 void update_ships_board(response *res, char board[BOARD_LEN][BOARD_LEN]) {
   switch (board[res->row][res->col]) {
-    case '-':
-    case '!':
+    case 'M':
+    case 'H':
       break;
-    case 'X':
-      board[res->row][res->col] = '-';
+    case '~':
+      board[res->row][res->col] = 'M';
       break;
     default:
-      board[res->row][res->col] = '!';
+      board[res->row][res->col] = 'H';
+      printf("\n>>You've been HIT!<<\n\n");
       break;
   }
 }

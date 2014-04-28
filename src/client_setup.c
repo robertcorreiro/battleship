@@ -8,7 +8,7 @@ void empty_board(char board[BOARD_LEN][BOARD_LEN]) {
 
   for (row = 0; row < BOARD_LEN; row++) {
     for (col = 0; col < BOARD_LEN; col++) {
-      board[row][col] = 'X';
+      board[row][col] = '~';
     }
   }
 }
@@ -118,7 +118,7 @@ int validate_ship_placement(ship *s, char board[BOARD_LEN][BOARD_LEN]) {
     for (i = 0; i < s->len; i++, col++) {
       /* don't allow if something's already in the spot */
       /* TODO: change to WATER instead of 0 */
-      if (board[s->row][col] != 'X') {
+      if (board[s->row][col] != '~') {
         vprintf("Horiz_valid: Collision!\n");
         return -1;
       }
@@ -136,7 +136,7 @@ int validate_ship_placement(ship *s, char board[BOARD_LEN][BOARD_LEN]) {
     int row = s->row;
     for (i = 0; i < s->len; i++, row++) {
       /* TODO: change to WATER instead of 0 */
-      if (board[row][s->col] != 'X') {
+      if (board[row][s->col] != '~') {
         vprintf("Vert_valid: Collision!\n");
         return -1;
       }
