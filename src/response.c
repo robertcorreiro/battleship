@@ -180,6 +180,7 @@ void build_response(battleship *game, message *msg_in, message *msg_out) {
               if(bd->guesses[x][y] == NOTHING){
                 int hit = other_bd->ships[y][x] == SHIP;
                 bd->guesses[x][y] = 1 + hit;
+                other_bd->hits += hit;
                 msg_out->buf[0] = hit;
                 game->turn = !game->turn;
                 game->last_guess_x = x;
@@ -194,6 +195,7 @@ void build_response(battleship *game, message *msg_in, message *msg_out) {
                 for(j=0;j<BOARD_LEN;j++){
                   vprintf("%c",icons[game->p1_board.ships[i][j]]);
                 }
+                vprintf(" ");
                 for(j=0;j<BOARD_LEN;j++){
                   vprintf("%c",icons[game->p2_board.ships[i][j]]);
                 }
