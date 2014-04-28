@@ -57,8 +57,12 @@ typedef struct {
   player p1;
   player p2;
   int sync;
+  int turn;
   board p1_board;
   board p2_board;
+  int hit;
+  int last_guess_x;
+  int last_guess_y;
 } battleship;
 
 #endif

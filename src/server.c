@@ -15,6 +15,7 @@
 #include <stdio.h>  /* fprintf() */
 #include <stdlib.h>  /* exit() */
 #include <string.h>  /* memset() */
+#include <time.h>  /* time() */
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netdb.h>
@@ -39,7 +40,7 @@ int main (int argc, char **argv) {
   struct addrinfo hints, *results, *p;
   struct sockaddr_storage cli_addr;
   socklen_t cli_addr_sz = sizeof cli_addr;
-
+  srand(time(NULL) * getpid());
   char c;
   verbose = 0;
   while ((c = getopt(argc, argv, options)) != -1) {
