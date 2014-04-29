@@ -48,7 +48,7 @@ int get_socket(char *serv_ip) {
   hints.ai_family = AF_UNSPEC;
   hints.ai_socktype = SOCK_STREAM;
   
-  if ((rv = getaddrinfo("127.0.0.1", SERVER_PORT, &hints, &results)) != 0) {
+  if ((rv = getaddrinfo(serv_ip, SERVER_PORT, &hints, &results)) != 0) {
     fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv));
     return 1;
   }
@@ -277,9 +277,9 @@ void poll_server(request *req, response *res) {
       fflush(stdout);
       sleep(2);
       send_req_to_server(req, res, POLL);
-      vprintf("\nPLAY:\n");
-      vprintf("poll_server:res->ready=%d\n", res->ready);
-      vprintf("poll_server:res->my_turn=%d\n", res->my_turn);
+      // vprintf("\nPLAY:\n");
+      // vprintf("poll_server:res->ready=%d\n", res->ready);
+      // vprintf("poll_server:res->my_turn=%d\n", res->my_turn);
     }
   }
 }
@@ -419,10 +419,6 @@ int main(int argc,char **argv) {
   int wait = 0;
   char c;
 
-  srand(time(NULL));
-  request req = {.uid = rand(), .serv_ip = argv[optind]};
-  response res = {.state = WAITING};
-
   verbose = 0;
   while((c = getopt(argc, argv, "v12")) != -1){
     switch(c){
@@ -443,6 +439,10 @@ int main(int argc,char **argv) {
         exit(EXIT_SUCCESS);
     }
   }
+
+  srand(time(NULL));
+  request req = {.uid = rand(), .serv_ip = argv[optind]};
+  response res = {.state = WAITING};
 
   /* Verify server is up and working */
   printf("Connecting..");
