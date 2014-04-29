@@ -23,7 +23,7 @@
 #include <netinet/in.h>
 #include <sys/socket.h>
 
-#define SERVER_PORT "5050"  /* TODO: REMOVE THIS */
+#define SERVER_PORT "5050"
 
 #define HIT_MARK 'X'
 #define MISS_MARK 'O'
