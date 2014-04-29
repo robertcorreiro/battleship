@@ -214,22 +214,31 @@ void build_response(battleship *game, message *msg_in, message *msg_out) {
           }
         case POLL:
           playerID = get_player_id(msg_in);
+          int done;
           if(playerID == game->p1.uid){
             vprintf("got a poll from player 1\n");
-            msg_out->buf[0] = game->p1_board.hits == 17;
+            done = game->p1_board.hits == 17;
+            if(done) game->state = WAITING;
+            msg_out->buf[0] = done;
             msg_out->buf[1] = game->turn;
             msg_out->buf[2] = game->last_guess_x;
             msg_out->buf[3] = game->last_guess_y;
             msg_out->len = 4;
           }else if(playerID == game->p2.uid){
             vprintf("got a poll from player 2\n");
-            msg_out->buf[0] = game->p2_board.hits == 17;
+            done = game->p2_board.hits == 17;
+            if(done) game->state = WAITING;
+            msg_out->buf[0] = done;
             msg_out->buf[1] = !game->turn;
             msg_out->buf[2] = game->last_guess_x;
             msg_out->buf[3] = game->last_guess_y;
             msg_out->len = 4;
           }else{
             vprintf("invalid uid\n");
+          }
+          if(msg_out->buf[0]){
+            memset(game,'\0',sizeof(*game));
+            game->state = WAITING;
           }
           break;
         default:
