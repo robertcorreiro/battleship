@@ -20,9 +20,6 @@ all: directories ${SERVER} ${CLIENT}
 directories:
 	mkdir -p ${BUILDDIR}/${MODDIR} ${BINDIR}
 
-#../public/%: ../public/%.c
-#	${CC} $< -o $@
-
 ${SERVER}: ${FRAMEWORK_OBJS} 
 	${CC} ${FRAMEWORK_OBJS} -o ${BINDIR}/${SERVER}
 
@@ -46,9 +43,6 @@ ${BUILDDIR}/client.o: client.c client.h
 ${BUILDDIR}/client_setup.o: client_setup.c
 	${CC} -c client_setup.c -o ${BUILDDIR}/client_setup.o
 
-#${BUILDDIR}/${MODDIR}/%.o: ${MODDIR}/%.c ${MODDIR}/%.h
-#	${CC} -c $< -o $@
-
 ts:
 	../bin/server -v
 
@@ -60,6 +54,16 @@ tc1:
 
 tc2:
 	../bin/client -v2 127.0.0.1
+
+test:
+	@echo Run the follow commands, in order, each in their own terminal.
+	@echo 1. make ts
+	@echo 2. make tc1
+	@echo 3. make tc2
+	@echo
+	@echo Players will be setup with pre-defined ship placements.
+	@echo Afterwards, the game will start and you can input moves for each player.
+	@echo
 
 submit:
 	svn commit -m "submitted for grade"
